@@ -372,8 +372,15 @@ impl Link {
         for (i, (core, side)) in cores.iter_mut().zip(options.sides).enumerate() {
             core.enable_video_buffer();
             core.load_rom(mgba::vfile::VFile::from_vec(side.rom))?;
-            if let Some(save) = &side.save {
-                core.savedata_restore(save)?;
+            if let Some(save) = side.save {
+                // A `VFile`, not `savedata_restore`: nothing has detected
+                // the cartridge's save type yet, so there is no savedata
+                // buffer to restore *into* and the restore would silently
+                // do nothing. The vfile becomes the cart's backing store,
+                // and mgba maps our bytes out of it whenever the game
+                // announces what kind of save it has. In memory, so this
+                // is still a save the caller owns and nothing on disk.
+                core.load_save(mgba::vfile::VFile::from_vec(save))?;
             }
             if let Some(rtc) = options.rtc {
                 core.set_rtc_fixed(rtc);
@@ -430,8 +437,11 @@ impl Link {
         for (core, side) in cores.iter_mut().zip(sides) {
             core.enable_video_buffer();
             core.load_rom(mgba::vfile::VFile::from_vec(side.rom))?;
-            if let Some(save) = &side.save {
-                core.savedata_restore(save)?;
+            // Same as `with_options`: pre-boot, the save has to arrive as
+            // the cart's backing store rather than a restore into a
+            // savedata buffer that does not exist yet.
+            if let Some(save) = side.save {
+                core.load_save(mgba::vfile::VFile::from_vec(save))?;
             }
             if let Some(rtc) = rtc {
                 core.set_rtc_fixed(rtc);
