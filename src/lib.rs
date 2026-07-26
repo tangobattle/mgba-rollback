@@ -372,8 +372,8 @@ impl Link {
         for (i, (core, side)) in cores.iter_mut().zip(options.sides).enumerate() {
             core.enable_video_buffer();
             core.load_rom(mgba::vfile::VFile::from_vec(side.rom))?;
-            if let Some(save) = side.save {
-                core.load_save(mgba::vfile::VFile::from_vec(save))?;
+            if let Some(save) = &side.save {
+                core.savedata_restore(save)?;
             }
             if let Some(rtc) = options.rtc {
                 core.set_rtc_fixed(rtc);
@@ -430,8 +430,8 @@ impl Link {
         for (core, side) in cores.iter_mut().zip(sides) {
             core.enable_video_buffer();
             core.load_rom(mgba::vfile::VFile::from_vec(side.rom))?;
-            if let Some(save) = side.save {
-                core.load_save(mgba::vfile::VFile::from_vec(save))?;
+            if let Some(save) = &side.save {
+                core.savedata_restore(save)?;
             }
             if let Some(rtc) = rtc {
                 core.set_rtc_fixed(rtc);
@@ -511,20 +511,11 @@ impl Link {
     }
 
     /// Core `i`'s current SRAM/flash/EEPROM image, or `None` if the game
-    /// has no savedata (type never detected). Read straight from the live
-    /// savedata buffer — the pair to [`Link::capture_boot_state`], since
-    /// core savestates do not carry savedata.
+    /// has no savedata (type never detected). The pair to
+    /// [`Link::capture_boot_state`], since core savestates do not carry
+    /// savedata.
     pub fn export_save(&mut self, i: usize) -> Option<Vec<u8>> {
-        unsafe {
-            let gba = gba_ptr(&mut self.cores[i]);
-            let savedata = std::ptr::addr_of!((*gba).memory.savedata);
-            let size = mgba_sys::GBASavedataSize(savedata);
-            let data = (*savedata).data;
-            if size == 0 || data.is_null() {
-                return None;
-            }
-            Some(std::slice::from_raw_parts(data as *const u8, size).to_vec())
-        }
+        self.cores[i].savedata_clone()
     }
 
     /// Number of players (cores) on this link.
