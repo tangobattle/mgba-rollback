@@ -136,7 +136,7 @@ dependencies = [
 [[package]]
 name = "getgud"
 version = "0.1.0"
-source = "git+https://github.com/tangobattle/getgud#0ce6135ba22bbeabdcb5a5c45835004f7a0a83a7"
+source = "git+https://github.com/tangobattle/getgud#747b51bba50589f83f6e6724fcb01ccf35d73c73"
 
 [[package]]
 name = "glob"

@@ -293,12 +293,6 @@ impl getgud::World for LinkWorld {
     fn predict(&self, last_remote: &u32) -> u32 {
         *last_remote
     }
-
-    fn log(&mut self, local: &u32, remotes: &[u32]) {
-        let keys = self.key_row(*local, remotes);
-        let mut shared = self.shared.lock().unwrap();
-        shared.confirmed.push(keys[..self.num_players].into());
-    }
 }
 
 /// How many settled-boundary digests to keep for cross-peer checkpoint
@@ -483,7 +477,21 @@ impl Session {
         };
 
         self.shared.lock().unwrap().slices_peak = 0;
-        let presented = self.inner.advance(local_keys)?.tick;
+        let advanced = self.inner.advance(local_keys)?;
+        let presented = advanced.frame.tick;
+        let confirmed = advanced.confirmed;
+        self.shared
+            .lock()
+            .unwrap()
+            .confirmed
+            .extend(confirmed.into_iter().map(|(local, remotes)| {
+                let mut keys = [0u32; MAX_PLAYERS];
+                keys[self.local_player] = local;
+                for (slot, &key) in remotes.iter().enumerate() {
+                    keys[slot + (slot >= self.local_player) as usize] = key;
+                }
+                Box::from(&keys[..self.num_players])
+            }));
 
         // Harvest the settled boundary this advance ended on, so a peer's
         // checkpoint for that tick can be answered later.
